@@ -879,77 +879,79 @@
   // ─────────────────────────────────────────────
   // GDELT FETCH
   // ─────────────────────────────────────────────
-  // RSS feeds - no CORS issues, always work
   const RSS_FEEDS = [
-    { url: 'https://feeds.bbcarabic.com/bbcarabic/world/rss.xml', name: 'BBC Arabic' },
     { url: 'https://www.aljazeera.net/xml/rss/all.xml', name: 'الجزيرة' },
-    { url: 'https://arabic.rt.com/rss/', name: 'RT Arabic' },
+    { url: 'https://feeds.bbcarabic.com/bbcarabic/world/rss.xml', name: 'BBC عربي' },
+    { url: 'https://feeds.skynewsarabia.com/web/rss/2036.xml', name: 'Sky News' },
+    { url: 'https://arabic.rt.com/rss/', name: 'RT عربي' },
     { url: 'https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml', name: 'NYT' },
-    { url: 'https://feeds.skynewsarabia.com/web/rss/2036.xml', name: 'Sky News Arabia' },
   ];
 
-  const RSS2JSON = 'https://api.rss2json.com/v1/api.json?rss_url=';
+  const PROXIES = [
+    u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  ];
+
+  async function fetchWithProxy(feedUrl) {
+    for (const proxy of PROXIES) {
+      try {
+        const res = await fetch(proxy(feedUrl), { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) continue;
+        let text;
+        try { const j = await res.json(); text = j.contents || ''; } catch(e) { text = await res.text(); }
+        if (text && text.includes('<item>')) return text;
+      } catch(e) { continue; }
+    }
+    return null;
+  }
+
+  function parseRSS(xmlText, sourceName) {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(xmlText, 'text/xml');
+      const items = doc.querySelectorAll('item');
+      const articles = [];
+      items.forEach(item => {
+        const title = item.querySelector('title')?.textContent?.trim() || '';
+        const link = item.querySelector('link')?.textContent?.trim() ||
+                     item.querySelector('guid')?.textContent?.trim() || '#';
+        const pubDate = item.querySelector('pubDate')?.textContent?.trim() || new Date().toUTCString();
+        const desc = item.querySelector('description')?.textContent?.trim() || '';
+        if (title && title.length > 5) articles.push({ title, url: link, domain: sourceName, pubDate, description: desc });
+      });
+      return articles;
+    } catch(e) { return []; }
+  }
 
   async function fetchEvents() {
     setStatus('جاري تحميل الأخبار...');
     document.getElementById('progressFill').style.width = '5%';
+    document.getElementById('mapLoader').classList.remove('hidden');
 
     const allArticles = [];
 
     for (let i = 0; i < RSS_FEEDS.length; i++) {
-      try {
-        const url = `${RSS2JSON}${encodeURIComponent(RSS_FEEDS[i].url)}&count=20`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.items) {
-            data.items.forEach(item => {
-              allArticles.push({
-                title: item.title,
-                url: item.link,
-                domain: RSS_FEEDS[i].name,
-                pubDate: item.pubDate,
-                description: item.description || ''
-              });
-            });
-          }
-        }
-      } catch (e) {
-        console.warn('Feed failed:', RSS_FEEDS[i].name);
+      const feed = RSS_FEEDS[i];
+      setStatus(`تحميل: ${feed.name}...`);
+      const xml = await fetchWithProxy(feed.url);
+      if (xml) {
+        const parsed = parseRSS(xml, feed.name);
+        allArticles.push(...parsed);
       }
       document.getElementById('progressFill').style.width = `${5 + (i + 1) * 18}%`;
     }
 
-    document.getElementById('progressFill').style.width = '92%';
+    document.getElementById('progressFill').style.width = '95%';
 
     if (allArticles.length === 0) {
-      // Fallback: use GDELT
-      await fetchGdeltFallback();
+      setStatus('⚠️ تعذّر الاتصال — سيعيد تلقائياً');
+      document.getElementById('mapLoader').classList.add('hidden');
+      resetCountdown();
       return;
     }
 
     processArticles(allArticles);
-  }
-
-  async function fetchGdeltFallback() {
-    setStatus('محاولة GDELT...');
-    try {
-      const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=Gaza+OR+Lebanon+OR+Syria+OR+Yemen+OR+Iran+OR+Iraq&mode=artlist&format=json&maxrecords=50&timespan=24h&sort=DateDesc`;
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.articles) {
-          const articles = data.articles.map(a => ({
-            title: a.title, url: a.url, domain: a.domain,
-            pubDate: a.seendate, description: ''
-          }));
-          processArticles(articles);
-          return;
-        }
-      }
-    } catch(e) {}
-    setStatus('⚠️ تعذّر الاتصال — سيعيد خلال 5 دقائق');
-    document.getElementById('mapLoader').classList.add('hidden');
   }
 
   function processArticles(allArticles) {
