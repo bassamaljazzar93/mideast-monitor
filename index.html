@@ -954,7 +954,55 @@
     processArticles(allArticles);
   }
 
-  function processArticles(allArticles) {
+  // ─────────────────────────────────────────────
+  // TRANSLATION - MyMemory Free API
+  // ─────────────────────────────────────────────
+  const translationCache = JSON.parse(localStorage.getItem('txCache') || '{}');
+
+  function isArabic(text) {
+    return /[؀-ۿ]/.test(text);
+  }
+
+  async function translateText(text) {
+    if (!text || isArabic(text)) return text;
+    if (translationCache[text]) return translationCache[text];
+    try {
+      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 500))}&langpair=en|ar`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) return text;
+      const data = await res.json();
+      const translated = data.responseData?.translatedText || text;
+      if (translated && translated !== text) {
+        translationCache[text] = translated;
+        // Save cache (keep last 200 entries)
+        const keys = Object.keys(translationCache);
+        if (keys.length > 200) delete translationCache[keys[0]];
+        localStorage.setItem('txCache', JSON.stringify(translationCache));
+        return translated;
+      }
+    } catch(e) {}
+    return text;
+  }
+
+  async function translateEvents(events) {
+    const toTranslate = events.filter(e => !isArabic(e.title));
+    if (toTranslate.length === 0) return events;
+    
+    setStatus(`ترجمة ${toTranslate.length} خبر...`);
+    
+    // Translate in batches of 5 concurrently
+    for (let i = 0; i < toTranslate.length; i += 5) {
+      const batch = toTranslate.slice(i, i + 5);
+      await Promise.all(batch.map(async e => {
+        e.titleAr = await translateText(e.title);
+      }));
+      document.getElementById('progressFill').style.width = 
+        `${Math.min(98, 60 + (i / toTranslate.length) * 38)}%`;
+    }
+    return events;
+  }
+
+  async function processArticles(allArticles) {
     // Deduplicate
     const seen = new Set();
     const unique = allArticles.filter(a => {
@@ -968,11 +1016,15 @@
       const loc = detectLocation(a.title) || detectLocation(a.description);
       const type = detectType(a.title + ' ' + a.description);
       const date = new Date(a.pubDate || Date.now());
-      return { ...a, loc, type, date, id: a.url };
+      // titleAr: use original if Arabic, else will be filled by translation
+      const titleAr = isArabic(a.title) ? a.title : null;
+      return { ...a, loc, type, date, id: a.url, titleAr };
     }).filter(e => e.loc);
 
+    // Sort newest first
     events.sort((a, b) => b.date - a.date);
 
+    // Notify new events
     const newEvents = events.filter(e => !seenEvents.has(e.id));
     if (newEvents.length > 0 && allEvents.length > 0) {
       triggerNewEventNotification(newEvents.length);
@@ -984,15 +1036,22 @@
     allEvents = events.slice(0, CONFIG.maxEvents);
     document.getElementById('liveCount').textContent = allEvents.length;
 
+    // Render immediately with original titles
     renderEvents();
     renderMarkers();
     updateLastTime();
     resetCountdown();
+    document.getElementById('mapLoader').classList.add('hidden');
+    setStatus(`✓ ${allEvents.length} حدث — جاري الترجمة...`);
+
+    // Then translate in background and re-render
+    await translateEvents(allEvents);
+    renderEvents();
+    renderMarkers();
 
     document.getElementById('progressFill').style.width = '100%';
-    document.getElementById('mapLoader').classList.add('hidden');
     setTimeout(() => document.getElementById('progressFill').style.width = '0%', 800);
-    setStatus(`✓ ${allEvents.length} حدث — تحديث كل 5 دقائق`);
+    setStatus(`✓ ${allEvents.length} حدث مترجم — تحديث كل 5 دقائق`);
   }
 
   function timeAgo(date) {
@@ -1025,7 +1084,8 @@
           <div class="event-location">📍 ${e.loc.country}</div>
           <div class="event-time">${timeAgo(e.date)} مضت</div>
         </div>
-        <div class="event-title">${truncate(e.title, 100)}</div>
+        <div class="event-title">${truncate(e.titleAr || e.title, 120)}</div>
+        ${e.titleAr && e.titleAr !== e.title ? `<div class="event-source" style="font-size:10px;color:#334155;margin-top:2px;font-family:var(--font-mono)">${truncate(e.title, 80)}</div>` : ''}
         <div class="event-footer">
           <span class="event-source">${e.domain}</span>
           <span class="event-type-badge badge-${e.type}">${typeLabel(e.type)}</span>
@@ -1106,7 +1166,7 @@
 
     return `<div class="popup-content">
       <div class="popup-location">📍 ${e.loc.country}</div>
-      <div class="popup-title">${truncate(e.title, 120)}</div>
+      <div class="popup-title">${truncate(e.titleAr || e.title, 140)}</div>
       ${othersHtml}
       <div class="popup-meta">
         <span>${e.domain}</span>
