@@ -879,69 +879,103 @@
   // ─────────────────────────────────────────────
   // GDELT FETCH
   // ─────────────────────────────────────────────
-  async function fetchEvents() {
-    setStatus('جاري الاتصال بـ GDELT...');
-    document.getElementById('progressFill').style.width = '10%';
+  // RSS feeds - no CORS issues, always work
+  const RSS_FEEDS = [
+    { url: 'https://feeds.bbcarabic.com/bbcarabic/world/rss.xml', name: 'BBC Arabic' },
+    { url: 'https://www.aljazeera.net/xml/rss/all.xml', name: 'الجزيرة' },
+    { url: 'https://arabic.rt.com/rss/', name: 'RT Arabic' },
+    { url: 'https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml', name: 'NYT' },
+    { url: 'https://feeds.skynewsarabia.com/web/rss/2036.xml', name: 'Sky News Arabia' },
+  ];
 
-    const queries = [
-      'Gaza OR Hamas OR "West Bank" OR Jenin OR Rafah',
-      'Lebanon OR Hezbollah OR Beirut',
-      'Syria OR Damascus OR Aleppo',
-      'Yemen OR Houthi OR Sanaa',
-      'Iran OR Tehran OR "Red Sea"',
-      'Iraq OR Baghdad OR ISIS',
-    ];
+  const RSS2JSON = 'https://api.rss2json.com/v1/api.json?rss_url=';
+
+  async function fetchEvents() {
+    setStatus('جاري تحميل الأخبار...');
+    document.getElementById('progressFill').style.width = '5%';
 
     const allArticles = [];
 
-    for (let i = 0; i < queries.length; i++) {
+    for (let i = 0; i < RSS_FEEDS.length; i++) {
       try {
-        const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(queries[i])}&mode=artlist&format=json&maxrecords=15&timespan=12h&sort=DateDesc`;
+        const url = `${RSS2JSON}${encodeURIComponent(RSS_FEEDS[i].url)}&count=20`;
         const res = await fetch(url);
         if (res.ok) {
           const data = await res.json();
-          if (data.articles) allArticles.push(...data.articles);
+          if (data.items) {
+            data.items.forEach(item => {
+              allArticles.push({
+                title: item.title,
+                url: item.link,
+                domain: RSS_FEEDS[i].name,
+                pubDate: item.pubDate,
+                description: item.description || ''
+              });
+            });
+          }
         }
       } catch (e) {
-        console.warn('Query failed:', queries[i]);
+        console.warn('Feed failed:', RSS_FEEDS[i].name);
       }
-      document.getElementById('progressFill').style.width = `${10 + (i + 1) * 14}%`;
+      document.getElementById('progressFill').style.width = `${5 + (i + 1) * 18}%`;
     }
 
-    document.getElementById('progressFill').style.width = '90%';
+    document.getElementById('progressFill').style.width = '92%';
 
     if (allArticles.length === 0) {
-      setStatus('⚠️ تعذّر الاتصال — سيعيد المحاولة');
-      document.getElementById('mapLoader').classList.add('hidden');
+      // Fallback: use GDELT
+      await fetchGdeltFallback();
       return;
     }
 
-    // Deduplicate by URL
+    processArticles(allArticles);
+  }
+
+  async function fetchGdeltFallback() {
+    setStatus('محاولة GDELT...');
+    try {
+      const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=Gaza+OR+Lebanon+OR+Syria+OR+Yemen+OR+Iran+OR+Iraq&mode=artlist&format=json&maxrecords=50&timespan=24h&sort=DateDesc`;
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.articles) {
+          const articles = data.articles.map(a => ({
+            title: a.title, url: a.url, domain: a.domain,
+            pubDate: a.seendate, description: ''
+          }));
+          processArticles(articles);
+          return;
+        }
+      }
+    } catch(e) {}
+    setStatus('⚠️ تعذّر الاتصال — سيعيد خلال 5 دقائق');
+    document.getElementById('mapLoader').classList.add('hidden');
+  }
+
+  function processArticles(allArticles) {
+    // Deduplicate
     const seen = new Set();
     const unique = allArticles.filter(a => {
-      if (seen.has(a.url)) return false;
+      if (!a.title || seen.has(a.url)) return false;
       seen.add(a.url);
       return true;
     });
 
-    // Parse
+    // Parse & filter to Middle East
     const events = unique.map(a => {
-      const loc = detectLocation(a.title) || detectLocation(a.sourcecountry);
-      const type = detectType(a.title);
-      const date = parseGdeltDate(a.seendate);
+      const loc = detectLocation(a.title) || detectLocation(a.description);
+      const type = detectType(a.title + ' ' + a.description);
+      const date = new Date(a.pubDate || Date.now());
       return { ...a, loc, type, date, id: a.url };
-    }).filter(e => e.loc); // only events with location
+    }).filter(e => e.loc);
 
-    // Sort by date desc
     events.sort((a, b) => b.date - a.date);
 
-    // Check for new events
     const newEvents = events.filter(e => !seenEvents.has(e.id));
     if (newEvents.length > 0 && allEvents.length > 0) {
       triggerNewEventNotification(newEvents.length);
     }
 
-    // Update seen
     events.forEach(e => seenEvents.add(e.id));
     localStorage.setItem('seenEvents', JSON.stringify([...seenEvents].slice(-500)));
 
@@ -956,15 +990,7 @@
     document.getElementById('progressFill').style.width = '100%';
     document.getElementById('mapLoader').classList.add('hidden');
     setTimeout(() => document.getElementById('progressFill').style.width = '0%', 800);
-    setStatus(`✓ ${allEvents.length} حدث محمّل — GDELT LIVE`);
-  }
-
-  function parseGdeltDate(str) {
-    if (!str) return new Date();
-    // Format: 20260301T120000Z
-    const m = str.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
-    if (m) return new Date(Date.UTC(+m[1], +m[2]-1, +m[3], +m[4], +m[5], +m[6]));
-    return new Date(str);
+    setStatus(`✓ ${allEvents.length} حدث — تحديث كل 5 دقائق`);
   }
 
   function timeAgo(date) {
