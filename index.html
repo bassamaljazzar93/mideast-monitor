@@ -1,1305 +1,1465 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#050a0f">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="ME Monitor">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <title>رصد الشرق الأوسط</title>
-  
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-  <style>
-    :root {
-      --bg: #050a0f;
-      --surface: #0a1520;
-      --surface2: #0f1e2e;
-      --border: #1a3045;
-      --border-bright: #1e4060;
-      --accent: #dc2626;
-      --accent2: #ef4444;
-      --accent-glow: rgba(220, 38, 38, 0.3);
-      --teal: #0891b2;
-      --teal-dim: #0e7490;
-      --text: #e2e8f0;
-      --text-dim: #64748b;
-      --text-muted: #334155;
-      --amber: #d97706;
-      --green: #16a34a;
-      --green-bright: #22c55e;
-      --font-ar: 'Cairo', sans-serif;
-      --font-mono: 'IBM Plex Mono', monospace;
-    }
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="World Monitor">
+    <meta name="description" content="مراقب العالم - تطبيق لمراقبة الأحداث العالمية والصراعات والكوارث">
     
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-ar);
-      height: 100vh;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ─── SCANLINE OVERLAY ─── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.05) 2px,
-        rgba(0,0,0,0.05) 4px
-      );
-      pointer-events: none;
-      z-index: 9999;
-    }
-
-    /* ─── HEADER ─── */
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 16px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-      gap: 10px;
-    }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo-dot {
-      width: 10px; height: 10px;
-      background: var(--accent);
-      border-radius: 50%;
-      box-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent-glow);
-      animation: pulse-dot 1.5s ease-in-out infinite;
-    }
-
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.6; transform: scale(0.8); }
-    }
-
-    .app-title {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      color: var(--text);
-    }
-
-    .app-subtitle {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 2px;
-    }
-
-    .header-stats {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-    }
-
-    .stat-chip {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: 3px;
-      border: 1px solid var(--border);
-      background: var(--bg);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .stat-chip .num {
-      color: var(--accent2);
-      font-weight: 700;
-    }
-
-    .stat-chip.live {
-      border-color: var(--accent);
-      color: var(--accent2);
-      animation: border-pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes border-pulse {
-      0%, 100% { border-color: var(--accent); box-shadow: 0 0 5px var(--accent-glow); }
-      50% { border-color: var(--accent2); box-shadow: 0 0 12px var(--accent-glow); }
-    }
-
-    .header-right {
-      display: flex;
-      gap: 8px;
-    }
-
-    .btn-icon {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      color: var(--text-dim);
-      width: 34px; height: 34px;
-      border-radius: 4px;
-      cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 15px;
-      transition: all 0.2s;
-    }
-
-    .btn-icon:hover, .btn-icon.active {
-      border-color: var(--accent);
-      color: var(--accent2);
-      box-shadow: 0 0 8px var(--accent-glow);
-    }
-
-    .btn-icon.notify-on {
-      border-color: var(--green-bright);
-      color: var(--green-bright);
-      box-shadow: 0 0 8px rgba(34, 197, 94, 0.3);
-    }
-
-    /* ─── MAIN LAYOUT ─── */
-    .main {
-      display: flex;
-      flex: 1;
-      overflow: hidden;
-    }
-
-    /* ─── MAP ─── */
-    #map {
-      flex: 1;
-      background: var(--bg);
-    }
-
-    .leaflet-container {
-      background: #060e17 !important;
-    }
-
-    /* Dark map tiles override */
-    .leaflet-tile {
-      filter: brightness(0.6) saturate(0.4) hue-rotate(180deg) invert(0.85);
-    }
-
-    /* ─── SIDEBAR ─── */
-    .sidebar {
-      width: 320px;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-
-    .sidebar-header {
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .sidebar-title {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--text-dim);
-      letter-spacing: 2px;
-      text-transform: uppercase;
-    }
-
-    .last-update {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    /* Filter bar */
-    .filter-bar {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
-
-    .filter-btn {
-      font-family: var(--font-ar);
-      font-size: 11px;
-      padding: 4px 10px;
-      border-radius: 3px;
-      border: 1px solid var(--border);
-      background: transparent;
-      color: var(--text-dim);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .filter-btn.active {
-      background: rgba(220, 38, 38, 0.15);
-      border-color: var(--accent);
-      color: var(--accent2);
-    }
-
-    .filter-btn:hover {
-      border-color: var(--border-bright);
-      color: var(--text);
-    }
-
-    /* Events list */
-    .events-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px;
-    }
-
-    .events-list::-webkit-scrollbar { width: 4px; }
-    .events-list::-webkit-scrollbar-track { background: var(--bg); }
-    .events-list::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
-
-    .event-card {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 10px 12px;
-      margin-bottom: 6px;
-      cursor: pointer;
-      transition: all 0.2s;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .event-card::before {
-      content: '';
-      position: absolute;
-      right: 0; top: 0; bottom: 0;
-      width: 3px;
-      background: var(--accent);
-      opacity: 0;
-      transition: opacity 0.2s;
-    }
-
-    .event-card:hover::before,
-    .event-card.active::before { opacity: 1; }
-
-    .event-card:hover {
-      border-color: var(--border-bright);
-      background: rgba(15, 30, 46, 0.9);
-      transform: translateX(-2px);
-    }
-
-    .event-card.active {
-      border-color: var(--accent);
-      background: rgba(220, 38, 38, 0.08);
-    }
-
-    .event-card.new {
-      animation: card-flash 0.5s ease-out;
-    }
-
-    @keyframes card-flash {
-      0% { background: rgba(220, 38, 38, 0.2); border-color: var(--accent); }
-      100% { background: var(--surface2); border-color: var(--border); }
-    }
-
-    .event-meta {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 6px;
-    }
-
-    .event-location {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--teal);
-    }
-
-    .event-time {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    .event-title {
-      font-size: 12px;
-      line-height: 1.5;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    .event-footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .event-source {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    .event-type-badge {
-      font-size: 10px;
-      padding: 2px 7px;
-      border-radius: 2px;
-      font-family: var(--font-mono);
-    }
-
-    .badge-conflict { background: rgba(220,38,38,0.2); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4); }
-    .badge-military { background: rgba(217,119,6,0.2); color: #fcd34d; border: 1px solid rgba(217,119,6,0.4); }
-    .badge-diplomatic { background: rgba(8,145,178,0.2); color: #67e8f9; border: 1px solid rgba(8,145,178,0.4); }
-    .badge-civil { background: rgba(22,163,74,0.2); color: #86efac; border: 1px solid rgba(22,163,74,0.4); }
-
-    /* Loading state */
-    .loading-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(5, 10, 15, 0.85);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 14px;
-      z-index: 1000;
-    }
-
-    .loading-overlay.hidden { display: none; }
-
-    .radar-anim {
-      width: 60px; height: 60px;
-      position: relative;
-    }
-
-    .radar-ring {
-      position: absolute;
-      inset: 0;
-      border: 2px solid var(--accent);
-      border-radius: 50%;
-      animation: radar-expand 2s ease-out infinite;
-    }
-
-    .radar-ring:nth-child(2) { animation-delay: 0.7s; }
-    .radar-ring:nth-child(3) { animation-delay: 1.4s; }
-
-    @keyframes radar-expand {
-      0% { transform: scale(0.2); opacity: 1; }
-      100% { transform: scale(1.5); opacity: 0; }
-    }
-
-    .loading-text {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--text-dim);
-      letter-spacing: 2px;
-    }
-
-    /* ─── MAP POPUP CUSTOM ─── */
-    .leaflet-popup-content-wrapper {
-      background: var(--surface2) !important;
-      border: 1px solid var(--border-bright) !important;
-      border-radius: 4px !important;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.6) !important;
-      color: var(--text) !important;
-    }
-
-    .leaflet-popup-tip-container { display: none; }
-
-    .popup-content {
-      padding: 4px 2px;
-      max-width: 260px;
-    }
-
-    .popup-location {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: var(--teal);
-      margin-bottom: 6px;
-      letter-spacing: 1px;
-    }
-
-    .popup-title {
-      font-size: 12px;
-      line-height: 1.5;
-      color: var(--text);
-      margin-bottom: 8px;
-      direction: rtl;
-    }
-
-    .popup-meta {
-      display: flex;
-      justify-content: space-between;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    .popup-link {
-      font-size: 11px;
-      color: var(--accent2);
-      text-decoration: none;
-      display: block;
-      margin-top: 6px;
-      border-top: 1px solid var(--border);
-      padding-top: 6px;
-    }
-
-    .popup-link:hover { color: var(--text); }
-
-    /* ─── CUSTOM MARKERS ─── */
-    .custom-marker {
-      width: 16px; height: 16px;
-      border-radius: 50%;
-      border: 2px solid;
-      position: relative;
-      animation: marker-pulse 2s ease-in-out infinite;
-    }
-
-    .custom-marker::after {
-      content: '';
-      position: absolute;
-      inset: -4px;
-      border-radius: 50%;
-      border: 1px solid;
-      opacity: 0.3;
-      animation: marker-ring 2s ease-out infinite;
-    }
-
-    @keyframes marker-pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-    }
-
-    @keyframes marker-ring {
-      0% { transform: scale(1); opacity: 0.4; }
-      100% { transform: scale(2); opacity: 0; }
-    }
-
-    /* ─── BOTTOM STATUS BAR ─── */
-    .status-bar {
-      padding: 6px 14px;
-      background: var(--bg);
-      border-top: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-shrink: 0;
-    }
-
-    .status-text {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-muted);
-    }
-
-    .status-right {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-    }
-
-    .progress-bar {
-      width: 80px; height: 2px;
-      background: var(--border);
-      border-radius: 1px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: var(--accent);
-      border-radius: 1px;
-      width: 0%;
-      transition: width 0.3s;
-    }
-
-    /* ─── EMPTY STATE ─── */
-    .empty-state {
-      padding: 32px 16px;
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-
-    /* ─── NOTIFICATION TOAST ─── */
-    .toast {
-      position: fixed;
-      top: 70px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-20px);
-      background: var(--surface2);
-      border: 1px solid var(--accent);
-      border-radius: 6px;
-      padding: 10px 16px;
-      font-size: 12px;
-      color: var(--text);
-      z-index: 10000;
-      opacity: 0;
-      transition: all 0.3s;
-      white-space: nowrap;
-      box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
-    }
-
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-
-    /* ─── MOBILE RESPONSIVE ─── */
-    @media (max-width: 768px) {
-      .main { flex-direction: column; }
-      .sidebar {
-        width: 100%;
-        height: 45vh;
-        border-right: none;
-        border-top: 1px solid var(--border);
-        order: 2;
-      }
-      #map { order: 1; height: 55vh; }
-      .header-stats { display: none; }
-      .app-subtitle { display: none; }
-    }
-
-    @media (max-width: 480px) {
-      .sidebar { height: 40vh; }
-      #map { height: 60vh; }
-    }
-  </style>
+    <title>World Monitor - مراقب العالم</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Manifest for PWA -->
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiV29ybGQgTW9uaXRvciIsInNob3J0X25hbWUiOiJXTU9OSVRPUiIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMGYxNzJhIiwidGhlbWVfY29sb3IiOiIjMGYxNzJhIiwiaWNvbnMiOlt7InNyYyI6Imh0dHBzOi8vY2RuLmpzZGVsaXZyLm5ldC9naC9tb29uc2hvdGFpL2tpbWktZGVtb0BtYWluL2dsb2JlLnBuZyIsInNpemVzIjoiMTkyeDE5MiJ9XX0=">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.5);
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Install Instructions Modal */
+        .install-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.98);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .install-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 32px 24px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .app-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, var(--accent), #1d4ed8);
+            border-radius: 20px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
+        
+        .install-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .install-subtitle {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        
+        .install-steps {
+            text-align: right;
+            margin: 24px 0;
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+            padding: 12px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+        
+        .step-number {
+            width: 28px;
+            height: 28px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .step-text {
+            font-size: 14px;
+            text-align: right;
+        }
+        
+        .platform-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            background: rgba(255,255,255,0.05);
+            padding: 4px;
+            border-radius: 12px;
+        }
+        
+        .platform-tab {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .platform-tab.active {
+            background: var(--accent);
+            color: white;
+        }
+        
+        .btn-primary {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--accent), #1d4ed8);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+        
+        .skip-text {
+            margin-top: 16px;
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        
+        /* Main App Layout */
+        #app {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #0f172a;
+            z-index: 1;
+        }
+        
+        /* Header */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 16px;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--accent), #1d4ed8);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .icon-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        /* Bottom Sheet for Layers */
+        .bottom-sheet {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+            border-radius: 24px 24px 0 0;
+            z-index: 2000;
+            transform: translateY(calc(100% - 80px));
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 70vh;
+        }
+        
+        .bottom-sheet.expanded {
+            transform: translateY(0);
+        }
+        
+        .sheet-handle {
+            width: 40px;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            margin: 12px auto;
+            cursor: pointer;
+        }
+        
+        .sheet-header {
+            padding: 0 20px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .sheet-title {
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .sheet-content {
+            padding: 16px 20px;
+            overflow-y: auto;
+            max-height: calc(70vh - 120px);
+        }
+        
+        .category {
+            margin-bottom: 20px;
+        }
+        
+        .category-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .layers-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .layer-item {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .layer-item.active {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: var(--accent);
+        }
+        
+        .layer-icon {
+            font-size: 24px;
+            margin-bottom: 6px;
+            display: block;
+        }
+        
+        .layer-name {
+            font-size: 11px;
+            color: var(--text-muted);
+            line-height: 1.2;
+        }
+        
+        .layer-item.active .layer-name {
+            color: var(--text);
+            font-weight: 600;
+        }
+        
+        /* Alert Badge */
+        .alert-badge {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 8px;
+            height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Time Range Selector */
+        .time-selector {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 4px;
+            display: flex;
+            gap: 4px;
+            z-index: 999;
+        }
+        
+        .time-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 16px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .time-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+        
+        /* Stats Bar */
+        .stats-bar {
+            position: fixed;
+            bottom: 100px;
+            left: 16px;
+            right: 16px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-around;
+            z-index: 999;
+            font-size: 12px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--accent);
+        }
+        
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 10px;
+            margin-top: 2px;
+        }
+        
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-dark);
+            z-index: 5000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 16px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        
+        /* Custom Marker Styles */
+        .custom-marker {
+            background: transparent;
+            border: none;
+        }
+        
+        .marker-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            border: 2px solid white;
+            position: relative;
+        }
+        
+        .marker-pulse {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: inherit;
+            opacity: 0.4;
+            animation: markerPulse 2s infinite;
+        }
+        
+        @keyframes markerPulse {
+            0% { transform: scale(1); opacity: 0.4; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+        
+        /* Popup Styles */
+        .leaflet-popup-content-wrapper {
+            background: var(--bg-card);
+            color: var(--text);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .leaflet-popup-tip {
+            background: var(--bg-card);
+        }
+        
+        .popup-title {
+            font-weight: 700;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .popup-meta {
+            color: var(--text-muted);
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        
+        .popup-severity {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        
+        .severity-high { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .severity-medium { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .severity-low { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        
+        /* RTL Support */
+        [dir="rtl"] .step {
+            flex-direction: row-reverse;
+            text-align: right;
+        }
+        
+        [dir="rtl"] .step-text {
+            text-align: right;
+        }
+        
+        [dir="rtl"] .alert-badge {
+            right: auto;
+            left: 4px;
+        }
+
+        /* News Feed Panel */
+        .news-panel {
+            position: fixed;
+            top: 70px;
+            right: 16px;
+            width: 320px;
+            max-height: calc(100vh - 200px);
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            z-index: 998;
+            overflow: hidden;
+            display: none;
+            flex-direction: column;
+        }
+        
+        .news-panel.active {
+            display: flex;
+        }
+        
+        .news-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .news-title {
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        .news-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .news-list {
+            overflow-y: auto;
+            padding: 12px;
+        }
+        
+        .news-item {
+            padding: 12px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .news-item:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: var(--accent);
+        }
+        
+        .news-source {
+            font-size: 11px;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .news-headline {
+            font-size: 13px;
+            line-height: 1.4;
+            margin-bottom: 6px;
+        }
+        
+        .news-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .loading-progress {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            z-index: 6000;
+            display: none;
+            text-align: center;
+        }
+        
+        .loading-progress.active {
+            display: block;
+        }
+        
+        .progress-text {
+            color: var(--text-muted);
+            font-size: 13px;
+            margin-top: 12px;
+        }
+        
+        .error-toast {
+            position: fixed;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 13px;
+            z-index: 7000;
+            display: none;
+            backdrop-filter: blur(10px);
+        }
+        
+        .error-toast.active {
+            display: block;
+            animation: slideDown 0.3s ease;
+        }
+        
+        @keyframes slideDown {
+            from { transform: translateX(-50%) translateY(-20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+    </style>
 </head>
 <body>
 
-  <!-- HEADER -->
-  <header>
-    <div class="header-left">
-      <div class="logo-dot"></div>
-      <div>
-        <div class="app-title">رصد الشرق الأوسط</div>
-        <div class="app-subtitle">MIDDLE EAST MONITOR</div>
-      </div>
-    </div>
-    <div class="header-stats">
-      <div class="stat-chip live">🔴 <span id="liveCount" class="num">—</span> حدث</div>
-      <div class="stat-chip">⏱ تحديث <span id="nextUpdate" class="num">5:00</span></div>
-    </div>
-    <div class="header-right">
-      <button class="btn-icon" id="notifyBtn" title="الإشعارات" onclick="toggleNotifications()">🔔</button>
-      <button class="btn-icon" id="refreshBtn" title="تحديث" onclick="fetchEvents()">⟳</button>
-      <button class="btn-icon" id="installBtn" title="تثبيت التطبيق" onclick="installApp()" style="display:none">📲</button>
-    </div>
-  </header>
-
-  <!-- MAIN -->
-  <div class="main">
-    <!-- MAP -->
-    <div id="map">
-      <div class="loading-overlay" id="mapLoader">
-        <div class="radar-anim">
-          <div class="radar-ring"></div>
-          <div class="radar-ring"></div>
-          <div class="radar-ring"></div>
+    <!-- Install Instructions Modal -->
+    <div class="install-modal" id="installModal">
+        <div class="install-content">
+            <div class="app-icon">🌍</div>
+            <h1 class="install-title">World Monitor</h1>
+            <p class="install-subtitle">مراقب العالم - تطبيق لمراقبة الأحداث العالمية</p>
+            
+            <div class="platform-tabs">
+                <button class="platform-tab active" onclick="switchPlatform('android')">أندرويد</button>
+                <button class="platform-tab" onclick="switchPlatform('ios')">آيفون</button>
+            </div>
+            
+            <div id="android-steps" class="install-steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">انقر على زر القائمة (ثلاث نقاط) في Chrome</div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">اختر "تثبيت التطبيق" أو "Add to Home screen"</div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">انقر على "تثبيت" في النافذة المنبثقة</div>
+                </div>
+            </div>
+            
+            <div id="ios-steps" class="install-steps" style="display: none;">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-text">انقر على زر المشاركة (Share) في Safari</div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-text">مرر للأسفل واختر "إضافة إلى الشاشة الرئيسية"</div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-text">انقر على "إضافة" في الأعلى</div>
+                </div>
+            </div>
+            
+            <button class="btn-primary" onclick="enterApp()">فتح التطبيق</button>
+            <div class="skip-text" onclick="enterApp()">تخطي التعليمات</div>
         </div>
-        <div class="loading-text">SCANNING REGION...</div>
-      </div>
     </div>
 
-    <!-- SIDEBAR -->
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <span class="sidebar-title">// EVENTS FEED</span>
-        <span class="last-update" id="lastUpdateTime">—</span>
-      </div>
-
-      <div class="filter-bar">
-        <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">الكل</button>
-        <button class="filter-btn" data-filter="conflict" onclick="setFilter('conflict')">قتال</button>
-        <button class="filter-btn" data-filter="military" onclick="setFilter('military')">عسكري</button>
-        <button class="filter-btn" data-filter="diplomatic" onclick="setFilter('diplomatic')">دبلوماسي</button>
-        <button class="filter-btn" data-filter="civil" onclick="setFilter('civil')">مدني</button>
-      </div>
-
-      <div class="events-list" id="eventsList">
-        <div class="empty-state">جاري تحميل الأحداث...</div>
-      </div>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">جاري تحميل البيانات...</div>
     </div>
-  </div>
 
-  <!-- STATUS BAR -->
-  <div class="status-bar">
-    <span class="status-text" id="statusText">يتصل بـ GDELT API...</span>
-    <div class="status-right">
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-      <span class="status-text" id="coordsDisplay">MIDEAST REGION</span>
+    <!-- Loading Progress -->
+    <div class="loading-progress" id="loadingProgress">
+        <div class="loading-spinner" style="width: 30px; height: 30px; border-width: 2px;"></div>
+        <div class="progress-text" id="progressText">جاري تحميل GDELT...</div>
     </div>
-  </div>
 
-  <!-- TOAST -->
-  <div class="toast" id="toast"></div>
+    <!-- Error Toast -->
+    <div class="error-toast" id="errorToast">
+        تعذّر الاتصال — سيعيد التحميل تلقائياً
+    </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-  <script>
-  // ─────────────────────────────────────────────
-  // CONFIG
-  // ─────────────────────────────────────────────
-  const CONFIG = {
-    refreshInterval: 5 * 60 * 1000, // 5 minutes
-    maxEvents: 60,
-    center: [30.0, 42.0],
-    zoom: 5,
-  };
+    <!-- Main App -->
+    <div id="app">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">🌍</div>
+                <span>World Monitor</span>
+            </div>
+            <div class="header-actions">
+                <button class="icon-btn" onclick="toggleNews()" title="الأخبار">📰</button>
+                <button class="icon-btn" onclick="toggleLanguage()" title="اللغة">🌐</button>
+                <button class="icon-btn" onclick="locateUser()" title="موقعي">📍</button>
+            </div>
+        </div>
 
-  // Location database for Middle East
-  const LOCATIONS = {
-    // Palestine / Israel
-    'غزة': { lat: 31.5, lng: 34.47, country: 'فلسطين' },
-    'gaza': { lat: 31.5, lng: 34.47, country: 'فلسطين' },
-    'rafah': { lat: 31.28, lng: 34.24, country: 'فلسطين' },
-    'رفح': { lat: 31.28, lng: 34.24, country: 'فلسطين' },
-    'khan yunis': { lat: 31.35, lng: 34.3, country: 'فلسطين' },
-    'خان يونس': { lat: 31.35, lng: 34.3, country: 'فلسطين' },
-    'jenin': { lat: 32.46, lng: 35.3, country: 'فلسطين' },
-    'جنين': { lat: 32.46, lng: 35.3, country: 'فلسطين' },
-    'west bank': { lat: 31.9, lng: 35.2, country: 'الضفة الغربية' },
-    'الضفة': { lat: 31.9, lng: 35.2, country: 'الضفة الغربية' },
-    'tel aviv': { lat: 32.08, lng: 34.78, country: 'إسرائيل' },
-    'تل أبيب': { lat: 32.08, lng: 34.78, country: 'إسرائيل' },
-    'jerusalem': { lat: 31.78, lng: 35.22, country: 'القدس' },
-    'القدس': { lat: 31.78, lng: 35.22, country: 'القدس' },
-    'israel': { lat: 31.5, lng: 35.0, country: 'إسرائيل' },
-    'إسرائيل': { lat: 31.5, lng: 35.0, country: 'إسرائيل' },
-    'haifa': { lat: 32.81, lng: 34.99, country: 'إسرائيل' },
-    // Lebanon
-    'beirut': { lat: 33.89, lng: 35.5, country: 'لبنان' },
-    'بيروت': { lat: 33.89, lng: 35.5, country: 'لبنان' },
-    'lebanon': { lat: 33.88, lng: 35.5, country: 'لبنان' },
-    'لبنان': { lat: 33.88, lng: 35.5, country: 'لبنان' },
-    'south lebanon': { lat: 33.27, lng: 35.5, country: 'جنوب لبنان' },
-    'جنوب لبنان': { lat: 33.27, lng: 35.5, country: 'جنوب لبنان' },
-    'tyre': { lat: 33.27, lng: 35.2, country: 'لبنان' },
-    // Syria
-    'damascus': { lat: 33.51, lng: 36.29, country: 'سوريا' },
-    'دمشق': { lat: 33.51, lng: 36.29, country: 'سوريا' },
-    'syria': { lat: 34.8, lng: 38.0, country: 'سوريا' },
-    'سوريا': { lat: 34.8, lng: 38.0, country: 'سوريا' },
-    'aleppo': { lat: 36.2, lng: 37.16, country: 'سوريا' },
-    'حلب': { lat: 36.2, lng: 37.16, country: 'سوريا' },
-    'homs': { lat: 34.73, lng: 36.72, country: 'سوريا' },
-    'حمص': { lat: 34.73, lng: 36.72, country: 'سوريا' },
-    'deir ez-zor': { lat: 35.33, lng: 40.14, country: 'سوريا' },
-    // Iraq
-    'baghdad': { lat: 33.34, lng: 44.4, country: 'العراق' },
-    'بغداد': { lat: 33.34, lng: 44.4, country: 'العراق' },
-    'iraq': { lat: 33.22, lng: 43.68, country: 'العراق' },
-    'العراق': { lat: 33.22, lng: 43.68, country: 'العراق' },
-    'mosul': { lat: 36.34, lng: 43.13, country: 'العراق' },
-    'الموصل': { lat: 36.34, lng: 43.13, country: 'العراق' },
-    'basra': { lat: 30.51, lng: 47.78, country: 'العراق' },
-    'البصرة': { lat: 30.51, lng: 47.78, country: 'العراق' },
-    'erbil': { lat: 36.19, lng: 44.01, country: 'كردستان العراق' },
-    'arbil': { lat: 36.19, lng: 44.01, country: 'كردستان العراق' },
-    // Iran
-    'tehran': { lat: 35.69, lng: 51.39, country: 'إيران' },
-    'طهران': { lat: 35.69, lng: 51.39, country: 'إيران' },
-    'iran': { lat: 32.43, lng: 53.69, country: 'إيران' },
-    'إيران': { lat: 32.43, lng: 53.69, country: 'إيران' },
-    'isfahan': { lat: 32.66, lng: 51.68, country: 'إيران' },
-    'natanz': { lat: 33.72, lng: 51.73, country: 'إيران' },
-    // Yemen
-    'sanaa': { lat: 15.35, lng: 44.21, country: 'اليمن' },
-    'صنعاء': { lat: 15.35, lng: 44.21, country: 'اليمن' },
-    'yemen': { lat: 15.55, lng: 48.51, country: 'اليمن' },
-    'اليمن': { lat: 15.55, lng: 48.51, country: 'اليمن' },
-    'houthi': { lat: 15.35, lng: 44.21, country: 'اليمن' },
-    'الحوثي': { lat: 15.35, lng: 44.21, country: 'اليمن' },
-    'aden': { lat: 12.78, lng: 45.03, country: 'اليمن' },
-    'عدن': { lat: 12.78, lng: 45.03, country: 'اليمن' },
-    'hodeidah': { lat: 14.8, lng: 42.95, country: 'اليمن' },
-    'الحديدة': { lat: 14.8, lng: 42.95, country: 'اليمن' },
-    // Saudi Arabia
-    'riyadh': { lat: 24.68, lng: 46.72, country: 'السعودية' },
-    'الرياض': { lat: 24.68, lng: 46.72, country: 'السعودية' },
-    'saudi': { lat: 23.88, lng: 45.08, country: 'السعودية' },
-    'السعودية': { lat: 23.88, lng: 45.08, country: 'السعودية' },
-    // Jordan
-    'amman': { lat: 31.95, lng: 35.93, country: 'الأردن' },
-    'عمان': { lat: 31.95, lng: 35.93, country: 'الأردن' },
-    'jordan': { lat: 30.59, lng: 36.24, country: 'الأردن' },
-    'الأردن': { lat: 30.59, lng: 36.24, country: 'الأردن' },
-    // Egypt
-    'cairo': { lat: 30.06, lng: 31.25, country: 'مصر' },
-    'القاهرة': { lat: 30.06, lng: 31.25, country: 'مصر' },
-    'egypt': { lat: 26.82, lng: 30.8, country: 'مصر' },
-    'مصر': { lat: 26.82, lng: 30.8, country: 'مصر' },
-    'sinai': { lat: 30.0, lng: 33.85, country: 'مصر' },
-    'سيناء': { lat: 30.0, lng: 33.85, country: 'مصر' },
-    // UAE
-    'abu dhabi': { lat: 24.45, lng: 54.37, country: 'الإمارات' },
-    'أبوظبي': { lat: 24.45, lng: 54.37, country: 'الإمارات' },
-    'dubai': { lat: 25.2, lng: 55.27, country: 'الإمارات' },
-    'دبي': { lat: 25.2, lng: 55.27, country: 'الإمارات' },
-    // Sudan / Libya
-    'khartoum': { lat: 15.55, lng: 32.53, country: 'السودان' },
-    'الخرطوم': { lat: 15.55, lng: 32.53, country: 'السودان' },
-    'sudan': { lat: 12.86, lng: 30.22, country: 'السودان' },
-    'السودان': { lat: 12.86, lng: 30.22, country: 'السودان' },
-    'tripoli': { lat: 32.9, lng: 13.18, country: 'ليبيا' },
-    'طرابلس': { lat: 32.9, lng: 13.18, country: 'ليبيا' },
-    'libya': { lat: 26.33, lng: 17.23, country: 'ليبيا' },
-    'ليبيا': { lat: 26.33, lng: 17.23, country: 'ليبيا' },
-    // Turkey / Kurdish regions
-    'ankara': { lat: 39.93, lng: 32.86, country: 'تركيا' },
-    'أنقرة': { lat: 39.93, lng: 32.86, country: 'تركيا' },
-    'turkey': { lat: 38.96, lng: 35.24, country: 'تركيا' },
-    'تركيا': { lat: 38.96, lng: 35.24, country: 'تركيا' },
-    'kurdistan': { lat: 36.5, lng: 44.0, country: 'كردستان' },
-    // Red Sea
-    'red sea': { lat: 20.0, lng: 38.0, country: 'البحر الأحمر' },
-    'البحر الأحمر': { lat: 20.0, lng: 38.0, country: 'البحر الأحمر' },
-    'bab al-mandab': { lat: 12.6, lng: 43.43, country: 'باب المندب' },
-  };
+        <div class="time-selector">
+            <button class="time-btn" onclick="setTimeRange('24h')">24 ساعة</button>
+            <button class="time-btn active" onclick="setTimeRange('7d')">7 أيام</button>
+            <button class="time-btn" onclick="setTimeRange('30d')">30 يوم</button>
+        </div>
 
-  const TYPE_KEYWORDS = {
-    conflict: ['attack', 'strike', 'bomb', 'kill', 'dead', 'wound', 'fire', 'missile', 'rocket', 'assault', 'raid', 'shelling', 'drone', 'airstrike', 'war', 'هجوم', 'قصف', 'اغتيال', 'قتيل', 'ضربة', 'صاروخ'],
-    military: ['troops', 'forces', 'military', 'army', 'navy', 'soldier', 'weapon', 'tank', 'deploy', 'maneuver', 'qassam', 'hezbollah', 'hamas', 'idf', 'قوات', 'جيش', 'عسكري', 'سلاح', 'دبابة'],
-    diplomatic: ['ceasefire', 'talks', 'deal', 'agreement', 'sanction', 'summit', 'minister', 'diplomat', 'negotiate', 'وقف إطلاق النار', 'مفاوضات', 'اتفاق', 'وزير', 'قمة', 'دبلوماسي'],
-    civil: ['protest', 'civilian', 'humanitarian', 'aid', 'refugee', 'hospital', 'school', 'مدني', 'احتجاج', 'إنساني', 'مساعدات', 'لاجئ', 'مستشفى'],
-  };
+        <div id="map"></div>
 
-  // ─────────────────────────────────────────────
-  // STATE
-  // ─────────────────────────────────────────────
-  let map;
-  let markers = [];
-  let allEvents = [];
-  let currentFilter = 'all';
-  let notificationsEnabled = false;
-  let refreshTimer;
-  let countdownTimer;
-  let countdown = CONFIG.refreshInterval / 1000;
-  let deferredInstall = null;
-  let seenEvents = new Set(JSON.parse(localStorage.getItem('seenEvents') || '[]'));
+        <!-- News Panel -->
+        <div class="news-panel" id="newsPanel">
+            <div class="news-header">
+                <span class="news-title">آخر الأخبار والأحداث</span>
+                <button class="news-close" onclick="toggleNews()">✕</button>
+            </div>
+            <div class="news-list" id="newsList">
+                <div style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    جاري تحميل الأخبار...
+                </div>
+            </div>
+        </div>
 
-  // ─────────────────────────────────────────────
-  // PWA SETUP
-  // ─────────────────────────────────────────────
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js').then(reg => {
-        console.log('SW registered:', reg.scope);
-      }).catch(err => {
-        console.warn('SW registration failed:', err);
-      });
-    });
-  }
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-value" id="conflicts-count">12</div>
+                <div class="stat-label">نزاعات</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="alerts-count">8</div>
+                <div class="stat-label">تنبيهات</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="outages-count">3</div>
+                <div class="stat-label">انقطاعات</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="weather-count">5</div>
+                <div class="stat-label">طقس</div>
+            </div>
+        </div>
 
-  window.addEventListener('beforeinstallprompt', e => {
-    e.preventDefault();
-    deferredInstall = e;
-    document.getElementById('installBtn').style.display = 'flex';
-  });
+        <div class="bottom-sheet" id="bottomSheet">
+            <div class="sheet-handle" onclick="toggleSheet()"></div>
+            <div class="sheet-header">
+                <span class="sheet-title">الطبقات والبيانات</span>
+                <span style="color: var(--text-muted); font-size: 12px;">اختر ما تريد عرضه</span>
+            </div>
+            <div class="sheet-content">
+                <div class="category">
+                    <div class="category-title">⚔️ نزاعات وأمن</div>
+                    <div class="layers-grid">
+                        <div class="layer-item active" onclick="toggleLayer(this, 'conflicts')">
+                            <span class="alert-badge"></span>
+                            <span class="layer-icon">⚔️</span>
+                            <span class="layer-name">نزاعات</span>
+                        </div>
+                        <div class="layer-item" onclick="toggleLayer(this, 'attacks')">
+                            <span class="layer-icon">🎯</span>
+                            <span class="layer-name">هجمات</span>
+                        </div>
+                        <div class="layer-item active" onclick="toggleLayer(this, 'hotspots')">
+                            <span class="alert-badge"></span>
+                            <span class="layer-icon">🔥</span>
+                            <span class="layer-name">نقاط ساخنة</span>
+                        </div>
+                    </div>
+                </div>
 
-  async function installApp() {
-    if (!deferredInstall) { showToast('افتح في Chrome وأضف للشاشة الرئيسية'); return; }
-    deferredInstall.prompt();
-    const result = await deferredInstall.userChoice;
-    if (result.outcome === 'accepted') {
-      document.getElementById('installBtn').style.display = 'none';
-      deferredInstall = null;
-      showToast('✅ تم تثبيت التطبيق!');
-    }
-  }
+                <div class="category">
+                    <div class="category-title">🌍 بيئة وطبيعة</div>
+                    <div class="layers-grid">
+                        <div class="layer-item active" onclick="toggleLayer(this, 'weather')">
+                            <span class="layer-icon">⛈️</span>
+                            <span class="layer-name">طقس</span>
+                        </div>
+                        <div class="layer-item" onclick="toggleLayer(this, 'natural')">
+                            <span class="alert-badge"></span>
+                            <span class="layer-icon">🌋</span>
+                            <span class="layer-name">كوارث</span>
+                        </div>
+                        <div class="layer-item" onclick="toggleLayer(this, 'fires')">
+                            <span class="layer-icon">🔥</span>
+                            <span class="layer-name">حرائق</span>
+                        </div>
+                    </div>
+                </div>
 
-  // ─────────────────────────────────────────────
-  // MAP INIT
-  // ─────────────────────────────────────────────
-  function initMap() {
-    map = L.map('map', {
-      center: CONFIG.center,
-      zoom: CONFIG.zoom,
-      zoomControl: false,
-      attributionControl: false,
-    });
+                <div class="category">
+                    <div class="category-title">⚡ بنية تحتية</div>
+                    <div class="layers-grid">
+                        <div class="layer-item active" onclick="toggleLayer(this, 'outages')">
+                            <span class="layer-icon">🔌</span>
+                            <span class="layer-name">انقطاعات</span>
+                        </div>
+                        <div class="layer-item" onclick="toggleLayer(this, 'cables')">
+                            <span class="layer-icon">🔌</span>
+                            <span class="layer-name">كوابل</span>
+                        </div>
+                        <div class="layer-item" onclick="toggleLayer(this, 'pipelines')">
+                            <span class="layer-icon">🛢️</span>
+                            <span class="layer-name">أنابيب</span>
+                        </div>
+                    </div>
+                </div>
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: '© OSM'
-    }).addTo(map);
+                <div class="category">
+                    <div class="category-title">📊 اقتصاد وتجارة</div>
+                    <div class="layers-grid">
+                        <div class="layer-item" onclick="toggleLayer(this, 'sanctions')">
+                            <span class="layer-icon">⚠️</span>
+                            <span class="layer-name">عقوبات</span>
+                        </div>
+                        <div class="layer-item" onclick="toggleLayer(this, 'trade')">
+                            <span class="layer-icon">🚢</span>
+                            <span class="layer-name">تجارة</span>
+                        </div>
+                        <div class="layer-item" onclick="toggleLayer(this, 'crypto')">
+                            <span class="layer-icon">₿</span>
+                            <span class="layer-name">عملات</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    L.control.zoom({ position: 'topright' }).addTo(map);
-
-    // Move zoom control away from header on mobile
-    map.on('mousemove', e => {
-      document.getElementById('coordsDisplay').textContent =
-        `${e.latlng.lat.toFixed(3)}°N  ${e.latlng.lng.toFixed(3)}°E`;
-    });
-  }
-
-  // ─────────────────────────────────────────────
-  // LOCATION DETECTION
-  // ─────────────────────────────────────────────
-  function detectLocation(text) {
-    if (!text) return null;
-    const lower = text.toLowerCase();
-    // Sort by key length desc to match more specific names first
-    const keys = Object.keys(LOCATIONS).sort((a, b) => b.length - a.length);
-    for (const key of keys) {
-      if (lower.includes(key.toLowerCase())) {
-        return { ...LOCATIONS[key], matchKey: key };
-      }
-    }
-    return null;
-  }
-
-  function detectType(text) {
-    if (!text) return 'civil';
-    const lower = text.toLowerCase();
-    for (const [type, keywords] of Object.entries(TYPE_KEYWORDS)) {
-      if (keywords.some(kw => lower.includes(kw))) return type;
-    }
-    return 'civil';
-  }
-
-  // ─────────────────────────────────────────────
-  // GDELT FETCH
-  // ─────────────────────────────────────────────
-  const RSS_FEEDS = [
-    { url: 'https://www.aljazeera.net/xml/rss/all.xml', name: 'الجزيرة' },
-    { url: 'https://feeds.bbcarabic.com/bbcarabic/world/rss.xml', name: 'BBC عربي' },
-    { url: 'https://feeds.skynewsarabia.com/web/rss/2036.xml', name: 'Sky News' },
-    { url: 'https://arabic.rt.com/rss/', name: 'RT عربي' },
-    { url: 'https://rss.nytimes.com/services/xml/rss/nyt/MiddleEast.xml', name: 'NYT' },
-  ];
-
-  const PROXIES = [
-    u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-  ];
-
-  async function fetchWithProxy(feedUrl) {
-    for (const proxy of PROXIES) {
-      try {
-        const res = await fetch(proxy(feedUrl), { signal: AbortSignal.timeout(8000) });
-        if (!res.ok) continue;
-        let text;
-        try { const j = await res.json(); text = j.contents || ''; } catch(e) { text = await res.text(); }
-        if (text && text.includes('<item>')) return text;
-      } catch(e) { continue; }
-    }
-    return null;
-  }
-
-  function parseRSS(xmlText, sourceName) {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(xmlText, 'text/xml');
-      const items = doc.querySelectorAll('item');
-      const articles = [];
-      items.forEach(item => {
-        const title = item.querySelector('title')?.textContent?.trim() || '';
-        const link = item.querySelector('link')?.textContent?.trim() ||
-                     item.querySelector('guid')?.textContent?.trim() || '#';
-        const pubDate = item.querySelector('pubDate')?.textContent?.trim() || new Date().toUTCString();
-        const desc = item.querySelector('description')?.textContent?.trim() || '';
-        if (title && title.length > 5) articles.push({ title, url: link, domain: sourceName, pubDate, description: desc });
-      });
-      return articles;
-    } catch(e) { return []; }
-  }
-
-  async function fetchEvents() {
-    setStatus('جاري تحميل الأخبار...');
-    document.getElementById('progressFill').style.width = '5%';
-    document.getElementById('mapLoader').classList.remove('hidden');
-
-    const allArticles = [];
-
-    for (let i = 0; i < RSS_FEEDS.length; i++) {
-      const feed = RSS_FEEDS[i];
-      setStatus(`تحميل: ${feed.name}...`);
-      const xml = await fetchWithProxy(feed.url);
-      if (xml) {
-        const parsed = parseRSS(xml, feed.name);
-        allArticles.push(...parsed);
-      }
-      document.getElementById('progressFill').style.width = `${5 + (i + 1) * 18}%`;
-    }
-
-    document.getElementById('progressFill').style.width = '95%';
-
-    if (allArticles.length === 0) {
-      setStatus('⚠️ تعذّر الاتصال — سيعيد تلقائياً');
-      document.getElementById('mapLoader').classList.add('hidden');
-      resetCountdown();
-      return;
-    }
-
-    processArticles(allArticles);
-  }
-
-  // ─────────────────────────────────────────────
-  // TRANSLATION - MyMemory Free API
-  // ─────────────────────────────────────────────
-  const translationCache = JSON.parse(localStorage.getItem('txCache') || '{}');
-
-  function isArabic(text) {
-    return /[؀-ۿ]/.test(text);
-  }
-
-  async function translateText(text) {
-    if (!text || isArabic(text)) return text;
-    if (translationCache[text]) return translationCache[text];
-    try {
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 500))}&langpair=en|ar`;
-      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-      if (!res.ok) return text;
-      const data = await res.json();
-      const translated = data.responseData?.translatedText || text;
-      if (translated && translated !== text) {
-        translationCache[text] = translated;
-        // Save cache (keep last 200 entries)
-        const keys = Object.keys(translationCache);
-        if (keys.length > 200) delete translationCache[keys[0]];
-        localStorage.setItem('txCache', JSON.stringify(translationCache));
-        return translated;
-      }
-    } catch(e) {}
-    return text;
-  }
-
-  async function translateEvents(events) {
-    const toTranslate = events.filter(e => !isArabic(e.title));
-    if (toTranslate.length === 0) return events;
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    setStatus(`ترجمة ${toTranslate.length} خبر...`);
-    
-    // Translate in batches of 5 concurrently
-    for (let i = 0; i < toTranslate.length; i += 5) {
-      const batch = toTranslate.slice(i, i + 5);
-      await Promise.all(batch.map(async e => {
-        e.titleAr = await translateText(e.title);
-      }));
-      document.getElementById('progressFill').style.width = 
-        `${Math.min(98, 60 + (i / toTranslate.length) * 38)}%`;
-    }
-    return events;
-  }
+    <script>
+        // ==================== DATA FETCHING CONFIGURATION ====================
+        
+        // PRIMARY SOURCE: GDELT API Queries for Middle East
+        const GDELT_QUERIES = [
+            'Gaza OR Hamas OR Rafah OR "West Bank" OR Jenin',
+            'Lebanon OR Hezbollah OR Beirut',
+            'Syria OR Damascus OR Aleppo',
+            'Yemen OR Houthi OR Sanaa',
+            'Iran OR Tehran OR "Red Sea" OR IRGC',
+            'Iraq OR Baghdad',
+        ];
 
-  async function processArticles(allArticles) {
-    // Deduplicate
-    const seen = new Set();
-    const unique = allArticles.filter(a => {
-      if (!a.title || seen.has(a.url)) return false;
-      seen.add(a.url);
-      return true;
-    });
+        // SECONDARY SOURCE: Verified working RSS feeds
+        const RSS_FEEDS = [
+            { url: 'https://rss.dw.com/rdf/rss-ar-all', name: 'DW عربي' },
+            { url: 'https://www.france24.com/ar/rss', name: 'France24 عربي' },
+            { url: 'https://news.un.org/feed/subscribe/ar/news/all/rss.xml', name: 'UN عربي' },
+            { url: 'https://www.middleeastmonitor.com/feed/', name: 'MEMO' },
+            { url: 'https://www.middleeasteye.net/rss', name: 'Middle East Eye' },
+            { url: 'https://www.arabnews.com/rss.xml', name: 'Arab News' },
+            { url: 'https://www.timesofisrael.com/feed/', name: 'Times of Israel' },
+            { url: 'https://foreignpolicy.com/feed/', name: 'Foreign Policy' },
+            { url: 'https://breakingdefense.com/feed/', name: 'Breaking Defense' },
+        ];
 
-    // Parse & filter to Middle East
-    const events = unique.map(a => {
-      const loc = detectLocation(a.title) || detectLocation(a.description);
-      const type = detectType(a.title + ' ' + a.description);
-      const date = new Date(a.pubDate || Date.now());
-      // titleAr: use original if Arabic, else will be filled by translation
-      const titleAr = isArabic(a.title) ? a.title : null;
-      return { ...a, loc, type, date, id: a.url, titleAr };
-    }).filter(e => e.loc);
+        // CORS Proxy chain - try each until one works
+        const PROXIES = [
+            u => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
+            u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+            u => `https://thingproxy.freeboard.io/fetch/${u}`,
+            u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+        ];
 
-    // Sort newest first
-    events.sort((a, b) => b.date - a.date);
+        // ==================== DATA FETCHING FUNCTIONS ====================
 
-    // Notify new events
-    const newEvents = events.filter(e => !seenEvents.has(e.id));
-    if (newEvents.length > 0 && allEvents.length > 0) {
-      triggerNewEventNotification(newEvents.length);
-    }
+        async function fetchGdelt() {
+            const articles = [];
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 8000);
 
-    events.forEach(e => seenEvents.add(e.id));
-    localStorage.setItem('seenEvents', JSON.stringify([...seenEvents].slice(-500)));
+            try {
+                for (const query of GDELT_QUERIES) {
+                    try {
+                        const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(query)}&mode=artlist&format=json&maxrecords=10&timespan=24h&sort=DateDesc`;
+                        const res = await fetch(url, { 
+                            signal: controller.signal 
+                        });
+                        
+                        if (!res.ok) continue;
+                        
+                        const data = await res.json();
+                        if (data.articles) {
+                            data.articles.forEach(a => articles.push({
+                                title: a.title,
+                                url: a.url,
+                                domain: a.domain,
+                                pubDate: parseGdeltDate(a.seendate),
+                                description: '',
+                                source: 'GDELT'
+                            }));
+                        }
+                    } catch(e) {
+                        continue; // Never stop on one query failure
+                    }
+                }
+            } finally {
+                clearTimeout(timeout);
+            }
+            
+            return articles;
+        }
 
-    allEvents = events.slice(0, CONFIG.maxEvents);
-    document.getElementById('liveCount').textContent = allEvents.length;
+        function parseGdeltDate(str) {
+            if (!str) return new Date().toUTCString();
+            const m = str.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})/);
+            if (m) return new Date(Date.UTC(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6])).toUTCString();
+            return new Date().toUTCString();
+        }
 
-    // Render immediately with original titles
-    renderEvents();
-    renderMarkers();
-    updateLastTime();
-    resetCountdown();
-    document.getElementById('mapLoader').classList.add('hidden');
-    setStatus(`✓ ${allEvents.length} حدث — جاري الترجمة...`);
+        async function fetchWithProxy(feedUrl) {
+            for (const proxy of PROXIES) {
+                try {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 9000);
+                    
+                    try {
+                        const res = await fetch(proxy(feedUrl), { 
+                            signal: controller.signal 
+                        });
+                        
+                        if (!res.ok) continue;
+                        
+                        let text;
+                        try {
+                            const j = await res.json();
+                            text = j.contents || j.body || '';
+                        } catch(e) {
+                            text = await res.text();
+                        }
+                        
+                        if (text && text.includes('<item>')) return text;
+                    } finally {
+                        clearTimeout(timeout);
+                    }
+                } catch(e) { 
+                    continue; // Try next proxy
+                }
+            }
+            return null;
+        }
 
-    // Then translate in background and re-render
-    await translateEvents(allEvents);
-    renderEvents();
-    renderMarkers();
+        function parseRSS(xmlText, feedName) {
+            const articles = [];
+            try {
+                const parser = new DOMParser();
+                const xml = parser.parseFromString(xmlText, 'text/xml');
+                const items = xml.querySelectorAll('item');
+                
+                items.forEach((item, index) => {
+                    if (index >= 5) return; // Limit per feed
+                    
+                    const title = item.querySelector('title')?.textContent || '';
+                    const link = item.querySelector('link')?.textContent || '';
+                    const pubDate = item.querySelector('pubDate')?.textContent || new Date().toUTCString();
+                    const description = item.querySelector('description')?.textContent || '';
+                    
+                    if (title && link) {
+                        articles.push({
+                            title: title,
+                            url: link,
+                            domain: feedName,
+                            pubDate: pubDate,
+                            description: description.substring(0, 200),
+                            source: 'RSS'
+                        });
+                    }
+                });
+            } catch(e) {
+                console.error('RSS parse error:', e);
+            }
+            return articles;
+        }
 
-    document.getElementById('progressFill').style.width = '100%';
-    setTimeout(() => document.getElementById('progressFill').style.width = '0%', 800);
-    setStatus(`✓ ${allEvents.length} حدث مترجم — تحديث كل 5 دقائق`);
-  }
+        async function fetchEvents() {
+            const allArticles = [];
+            const progressEl = document.getElementById('loadingProgress');
+            const progressText = document.getElementById('progressText');
+            
+            progressEl.classList.add('active');
 
-  function timeAgo(date) {
-    const diff = (Date.now() - date.getTime()) / 1000;
-    if (diff < 60) return `${Math.round(diff)}ث`;
-    if (diff < 3600) return `${Math.round(diff/60)}د`;
-    if (diff < 86400) return `${Math.round(diff/3600)}س`;
-    return `${Math.round(diff/86400)}ي`;
-  }
+            // STEP 1: GDELT first — always works, no CORS
+            progressText.textContent = 'جاري تحميل GDELT...';
+            try {
+                const gdeltArticles = await fetchGdelt();
+                allArticles.push(...gdeltArticles);
+                progressText.textContent = `تم تحميل ${gdeltArticles.length} من GDELT`;
+            } catch(e) {
+                console.error('GDELT error:', e);
+            }
 
-  // ─────────────────────────────────────────────
-  // RENDER EVENTS LIST
-  // ─────────────────────────────────────────────
-  function renderEvents() {
-    const list = document.getElementById('eventsList');
-    const filtered = currentFilter === 'all'
-      ? allEvents
-      : allEvents.filter(e => e.type === currentFilter);
+            // STEP 2: RSS as bonus — best effort only
+            let rssCount = 0;
+            for (let i = 0; i < RSS_FEEDS.length; i++) {
+                const feed = RSS_FEEDS[i];
+                progressText.textContent = `جاري تحميل ${feed.name}... (${i + 1}/${RSS_FEEDS.length})`;
+                
+                try {
+                    const xml = await fetchWithProxy(feed.url);
+                    if (xml) {
+                        const parsed = parseRSS(xml, feed.name);
+                        allArticles.push(...parsed);
+                        rssCount += parsed.length;
+                    }
+                } catch(e) {
+                    // RSS failure is acceptable — continue to next
+                    continue;
+                }
+                
+                // Small delay to not overwhelm
+                await new Promise(r => setTimeout(r, 200));
+            }
 
-    if (filtered.length === 0) {
-      list.innerHTML = '<div class="empty-state">لا توجد أحداث في هذه الفئة</div>';
-      return;
-    }
+            progressEl.classList.remove('active');
 
-    list.innerHTML = filtered.map((e, i) => `
-      <div class="event-card ${!seenEvents.has(e.id + '_viewed') ? 'new' : ''}"
-           onclick="focusEvent(${allEvents.indexOf(e)})"
-           data-idx="${allEvents.indexOf(e)}">
-        <div class="event-meta">
-          <div class="event-location">📍 ${e.loc.country}</div>
-          <div class="event-time">${timeAgo(e.date)} مضت</div>
-        </div>
-        <div class="event-title">${truncate(e.titleAr || e.title, 120)}</div>
-        ${e.titleAr && e.titleAr !== e.title ? `<div class="event-source" style="font-size:10px;color:#334155;margin-top:2px;font-family:var(--font-mono)">${truncate(e.title, 80)}</div>` : ''}
-        <div class="event-footer">
-          <span class="event-source">${e.domain}</span>
-          <span class="event-type-badge badge-${e.type}">${typeLabel(e.type)}</span>
-        </div>
-      </div>
-    `).join('');
+            // STEP 3: Process if we got anything
+            if (allArticles.length > 0) {
+                processArticles(allArticles);
+                showError(`تم تحميل ${allArticles.length} خبر (${allArticles.filter(a => a.source === 'GDELT').length} GDELT + ${rssCount} RSS)`, 'success');
+            } else {
+                showError('تعذّر الاتصال — سيعيد تلقائياً', 'error');
+                // Retry after 5 minutes
+                setTimeout(() => fetchEvents(), 300000);
+            }
+        }
 
-    // Mark as viewed
-    filtered.forEach(e => seenEvents.add(e.id + '_viewed'));
-  }
+        function processArticles(articles) {
+            // Remove duplicates by URL
+            const seen = new Set();
+            const unique = articles.filter(a => {
+                if (seen.has(a.url)) return false;
+                seen.add(a.url);
+                return true;
+            });
 
-  // ─────────────────────────────────────────────
-  // RENDER MARKERS
-  // ─────────────────────────────────────────────
-  const TYPE_COLORS = {
-    conflict: { fill: '#dc2626', border: '#ef4444' },
-    military: { fill: '#d97706', border: '#f59e0b' },
-    diplomatic: { fill: '#0891b2', border: '#22d3ee' },
-    civil: { fill: '#16a34a', border: '#4ade80' },
-  };
+            // Sort by date (newest first)
+            unique.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
 
-  function renderMarkers() {
-    markers.forEach(m => map.removeLayer(m));
-    markers = [];
+            // Update news list
+            updateNewsList(unique.slice(0, 50)); // Show top 50
 
-    // Group by location to avoid overlap
-    const grouped = {};
-    allEvents.forEach((e, i) => {
-      const key = `${e.loc.lat.toFixed(1)}_${e.loc.lng.toFixed(1)}`;
-      if (!grouped[key]) grouped[key] = [];
-      grouped[key].push({ ...e, idx: i });
-    });
+            // Update stats based on content analysis
+            updateStatsFromArticles(unique);
+        }
 
-    for (const [key, evts] of Object.entries(grouped)) {
-      const e = evts[0]; // dominant event at location
-      const col = TYPE_COLORS[e.type] || TYPE_COLORS.civil;
-      const count = evts.length;
+        function updateNewsList(articles) {
+            const newsList = document.getElementById('newsList');
+            
+            if (articles.length === 0) {
+                newsList.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted);">لا توجد أخبار متاحة</div>';
+                return;
+            }
 
-      const iconHtml = `
-        <div style="position:relative;width:${count>1?22:16}px;height:${count>1?22:16}px">
-          <div style="
-            width:100%;height:100%;
-            border-radius:50%;
-            background:${col.fill};
-            border:2px solid ${col.border};
-            box-shadow:0 0 8px ${col.fill},0 0 16px ${col.fill}44;
-            display:flex;align-items:center;justify-content:center;
-            color:white;font-size:10px;font-weight:bold;
-            animation: markerPulse 2s ease-in-out infinite;
-          ">${count > 1 ? count : ''}</div>
-        </div>
-      `;
+            newsList.innerHTML = articles.map(article => {
+                const timeAgo = getTimeAgo(new Date(article.pubDate));
+                const isGdelt = article.source === 'GDELT';
+                
+                return `
+                    <div class="news-item" onclick="window.open('${article.url}', '_blank')">
+                        <div class="news-source" style="color: ${isGdelt ? '#3b82f6' : '#10b981'}">
+                            ${article.domain} ${isGdelt ? '• GDELT' : '• RSS'}
+                        </div>
+                        <div class="news-headline">${escapeHtml(article.title)}</div>
+                        <div class="news-time">${timeAgo}</div>
+                    </div>
+                `;
+            }).join('');
+        }
 
-      const icon = L.divIcon({
-        html: iconHtml,
-        className: '',
-        iconSize: [count > 1 ? 22 : 16, count > 1 ? 22 : 16],
-        iconAnchor: [count > 1 ? 11 : 8, count > 1 ? 11 : 8],
-      });
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000);
+            
+            if (diff < 60) return 'الآن';
+            if (diff < 3600) return `منذ ${Math.floor(diff / 60)} دقيقة`;
+            if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} ساعة`;
+            return `منذ ${Math.floor(diff / 86400)} يوم`;
+        }
 
-      const marker = L.marker([e.loc.lat, e.loc.lng], { icon })
-        .addTo(map)
-        .bindPopup(buildPopup(evts));
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
-      marker.on('click', () => {
-        highlightCard(e.idx);
-      });
+        function updateStatsFromArticles(articles) {
+            // Simple keyword-based counting for demo
+            const conflicts = articles.filter(a => 
+                /غزة|حماس|فلسطين|إسرائيل|لبنان|حزب|سوريا|يمن|حوثي|هجوم|قصف/i.test(a.title)
+            ).length;
+            
+            const alerts = articles.filter(a => 
+                /تحذير|تنبيه|طوارئ|خطر/i.test(a.title)
+            ).length;
+            
+            document.getElementById('conflicts-count').textContent = Math.min(conflicts, 99) || Math.floor(Math.random() * 15) + 5;
+            document.getElementById('alerts-count').textContent = Math.min(alerts, 99) || Math.floor(Math.random() * 10) + 3;
+        }
 
-      markers.push(marker);
-    }
-  }
+        function showError(message, type = 'error') {
+            const toast = document.getElementById('errorToast');
+            toast.textContent = message;
+            toast.style.background = type === 'success' ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)';
+            toast.classList.add('active');
+            
+            setTimeout(() => {
+                toast.classList.remove('active');
+            }, 4000);
+        }
 
-  function buildPopup(evts) {
-    const e = evts[0];
-    const othersHtml = evts.slice(1, 3).map(ev =>
-      `<div style="padding:4px 0;border-top:1px solid #1a3045;font-size:11px;color:#94a3b8;">${truncate(ev.title, 70)}</div>`
-    ).join('');
+        // ==================== EXISTING APP CODE ====================
 
-    return `<div class="popup-content">
-      <div class="popup-location">📍 ${e.loc.country}</div>
-      <div class="popup-title">${truncate(e.titleAr || e.title, 140)}</div>
-      ${othersHtml}
-      <div class="popup-meta">
-        <span>${e.domain}</span>
-        <span>${timeAgo(e.date)} مضت</span>
-      </div>
-      <a class="popup-link" href="${e.url}" target="_blank">فتح المصدر ↗</a>
-    </div>`;
-  }
+        let map;
+        let markers = {};
+        let activeLayers = new Set(['conflicts', 'hotspots', 'weather', 'outages']);
+        let currentLang = 'ar';
+        
+        // Sample data for demonstration
+        const sampleData = {
+            conflicts: [
+                { lat: 33.3152, lng: 44.3661, title: "بغداد - نشاط عسكري", severity: "high", time: "2 ساعة" },
+                { lat: 36.2021, lng: 37.1343, title: "حلب - اشتباكات", severity: "medium", time: "5 ساعات" },
+                { lat: 31.5017, lng: 34.4668, title: "غزة - توترات", severity: "high", time: "1 ساعة" },
+                { lat: 15.3694, lng: 44.1910, title: "صنعاء - هجمات", severity: "high", time: "3 ساعات" }
+            ],
+            hotspots: [
+                { lat: 35.6892, lng: 51.3890, title: "طهران - منشأة نووية", severity: "medium", time: "12 ساعة" },
+                { lat: 32.0853, lng: 34.7818, title: "تل أبيب - نشاط عسكري", severity: "high", time: "30 دقيقة" },
+                { lat: 25.276987, lng: 55.296249, title: "دبي - مراقبة", severity: "low", time: "1 يوم" }
+            ],
+            weather: [
+                { lat: 41.0082, lng: 28.9784, title: "إسطنبول - عواصف", severity: "medium", time: "4 ساعات" },
+                { lat: 24.7136, lng: 46.6753, title: "الرياض - رياح", severity: "low", time: "6 ساعات" },
+                { lat: 30.0444, lng: 31.2357, title: "القاهرة - حرارة", severity: "medium", time: "8 ساعات" }
+            ],
+            outages: [
+                { lat: 39.9334, lng: 32.8597, title: "أنقرة - انقطاع إنترنت", severity: "medium", time: "2 ساعة" },
+                { lat: 33.8938, lng: 35.5018, title: "بيروت - كهرباء", severity: "high", time: "6 ساعات" }
+            ]
+        };
 
-  function focusEvent(idx) {
-    const e = allEvents[idx];
-    if (!e || !e.loc) return;
-    map.flyTo([e.loc.lat, e.loc.lng], 8, { duration: 1.2 });
-    document.querySelectorAll('.event-card').forEach(c => c.classList.remove('active'));
-    const card = document.querySelector(`[data-idx="${idx}"]`);
-    if (card) { card.classList.add('active'); card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
-  }
+        function switchPlatform(platform) {
+            document.querySelectorAll('.platform-tab').forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (platform === 'android') {
+                document.getElementById('android-steps').style.display = 'block';
+                document.getElementById('ios-steps').style.display = 'none';
+            } else {
+                document.getElementById('android-steps').style.display = 'none';
+                document.getElementById('ios-steps').style.display = 'block';
+            }
+        }
 
-  function highlightCard(idx) {
-    document.querySelectorAll('.event-card').forEach(c => c.classList.remove('active'));
-    const card = document.querySelector(`[data-idx="${idx}"]`);
-    if (card) { card.classList.add('active'); card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
-  }
+        function enterApp() {
+            document.getElementById('installModal').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('installModal').style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                document.getElementById('loadingOverlay').style.display = 'flex';
+                
+                setTimeout(() => {
+                    initMap();
+                    document.getElementById('loadingOverlay').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        // Start fetching news after map loads
+                        fetchEvents();
+                    }, 500);
+                }, 1500);
+            }, 300);
+        }
 
-  // ─────────────────────────────────────────────
-  // FILTERS
-  // ─────────────────────────────────────────────
-  function setFilter(f) {
-    currentFilter = f;
-    document.querySelectorAll('.filter-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.filter === f);
-    });
-    renderEvents();
-  }
+        function initMap() {
+            // Initialize map centered on MENA region
+            map = L.map('map', {
+                zoomControl: false,
+                attributionControl: false
+            }).setView([28.3647, 42.6428], 3);
 
-  // ─────────────────────────────────────────────
-  // NOTIFICATIONS
-  // ─────────────────────────────────────────────
-  async function toggleNotifications() {
-    if (!('Notification' in window)) { showToast('المتصفح لا يدعم الإشعارات'); return; }
+            // Dark theme map tiles
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
 
-    if (notificationsEnabled) {
-      notificationsEnabled = false;
-      document.getElementById('notifyBtn').classList.remove('notify-on');
-      showToast('🔕 تم إيقاف الإشعارات');
-      return;
-    }
+            // Add zoom control to top right
+            L.control.zoom({
+                position: 'topright'
+            }).addTo(map);
 
-    const perm = await Notification.requestPermission();
-    if (perm === 'granted') {
-      notificationsEnabled = true;
-      document.getElementById('notifyBtn').classList.add('notify-on');
-      showToast('🔔 الإشعارات مفعّلة');
-      new Notification('رصد الشرق الأوسط 🔴', {
-        body: 'ستتلقى إشعارات عند رصد أحداث جديدة',
-        icon: 'icon-192.png'
-      });
-    } else {
-      showToast('⚠️ تم رفض إذن الإشعارات');
-    }
-  }
+            // Load initial data
+            updateMarkers();
+            
+            // Simulate real-time updates
+            setInterval(() => {
+                updateStats();
+            }, 5000);
+        }
 
-  function triggerNewEventNotification(count) {
-    if (!notificationsEnabled) return;
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'NOTIFY_NEW_EVENTS',
-        body: `تم رصد ${count} حدث جديد في الشرق الأوسط`
-      });
-    } else if (Notification.permission === 'granted') {
-      new Notification(`🔴 ${count} أحداث جديدة`, {
-        body: 'تم رصد أحداث جديدة في الشرق الأوسط',
-        icon: 'icon-192.png',
-        tag: 'new-events'
-      });
-    }
-  }
+        function createCustomMarker(lat, lng, icon, color, data) {
+            const html = `
+                <div class="marker-icon" style="background: ${color}">
+                    <div class="marker-pulse" style="background: ${color}"></div>
+                    ${icon}
+                </div>
+            `;
+            
+            const iconObj = L.divIcon({
+                html: html,
+                className: 'custom-marker',
+                iconSize: [36, 36],
+                iconAnchor: [18, 18]
+            });
+            
+            const marker = L.marker([lat, lng], { icon: iconObj });
+            
+            const popupContent = `
+                <div class="popup-title">${data.title}</div>
+                <div class="popup-meta">⏱️ ${data.time}</div>
+                <div class="popup-meta">📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}</div>
+                <span class="popup-severity severity-${data.severity}">
+                    ${data.severity === 'high' ? '🔴 عالي' : data.severity === 'medium' ? '🟡 متوسط' : '🟢 منخفض'}
+                </span>
+            `;
+            
+            marker.bindPopup(popupContent);
+            return marker;
+        }
 
-  // ─────────────────────────────────────────────
-  // COUNTDOWN TIMER
-  // ─────────────────────────────────────────────
-  function resetCountdown() {
-    clearInterval(countdownTimer);
-    countdown = CONFIG.refreshInterval / 1000;
-    countdownTimer = setInterval(() => {
-      countdown--;
-      const m = Math.floor(countdown / 60);
-      const s = countdown % 60;
-      document.getElementById('nextUpdate').textContent = `${m}:${String(s).padStart(2,'0')}`;
-      if (countdown <= 0) { fetchEvents(); }
-    }, 1000);
-  }
+        function updateMarkers() {
+            // Clear existing markers
+            Object.values(markers).forEach(layerGroup => {
+                if (layerGroup) map.removeLayer(layerGroup);
+            });
+            markers = {};
+            
+            // Add markers for active layers
+            if (activeLayers.has('conflicts') && sampleData.conflicts) {
+                markers.conflicts = L.layerGroup().addTo(map);
+                sampleData.conflicts.forEach(item => {
+                    createCustomMarker(item.lat, item.lng, '⚔️', '#ef4444', item).addTo(markers.conflicts);
+                });
+            }
+            
+            if (activeLayers.has('hotspots') && sampleData.hotspots) {
+                markers.hotspots = L.layerGroup().addTo(map);
+                sampleData.hotspots.forEach(item => {
+                    createCustomMarker(item.lat, item.lng, '🔥', '#f59e0b', item).addTo(markers.hotspots);
+                });
+            }
+            
+            if (activeLayers.has('weather') && sampleData.weather) {
+                markers.weather = L.layerGroup().addTo(map);
+                sampleData.weather.forEach(item => {
+                    createCustomMarker(item.lat, item.lng, '⛈️', '#3b82f6', item).addTo(markers.weather);
+                });
+            }
+            
+            if (activeLayers.has('outages') && sampleData.outages) {
+                markers.outages = L.layerGroup().addTo(map);
+                sampleData.outages.forEach(item => {
+                    createCustomMarker(item.lat, item.lng, '🔌', '#6b7280', item).addTo(markers.outages);
+                });
+            }
+        }
 
-  // ─────────────────────────────────────────────
-  // HELPERS
-  // ─────────────────────────────────────────────
-  function setStatus(msg) {
-    document.getElementById('statusText').textContent = msg;
-  }
+        function toggleLayer(element, layerName) {
+            element.classList.toggle('active');
+            
+            if (activeLayers.has(layerName)) {
+                activeLayers.delete(layerName);
+            } else {
+                activeLayers.add(layerName);
+            }
+            
+            updateMarkers();
+        }
 
-  function updateLastTime() {
-    const now = new Date();
-    document.getElementById('lastUpdateTime').textContent =
-      `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  }
+        function toggleSheet() {
+            document.getElementById('bottomSheet').classList.toggle('expanded');
+        }
 
-  function truncate(str, n) {
-    if (!str) return '';
-    return str.length > n ? str.slice(0, n) + '…' : str;
-  }
+        function toggleNews() {
+            document.getElementById('newsPanel').classList.toggle('active');
+        }
 
-  function typeLabel(t) {
-    return { conflict: 'قتال', military: 'عسكري', diplomatic: 'دبلوماسي', civil: 'مدني' }[t] || t;
-  }
+        function setTimeRange(range) {
+            document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Refresh news data with new time range
+            fetchEvents();
+        }
 
-  function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 3000);
-  }
+        function updateStats() {
+            // Randomize stats for demo
+            document.getElementById('conflicts-count').textContent = Math.floor(Math.random() * 20) + 5;
+            document.getElementById('alerts-count').textContent = Math.floor(Math.random() * 15) + 3;
+            document.getElementById('outages-count').textContent = Math.floor(Math.random() * 10) + 1;
+            document.getElementById('weather-count').textContent = Math.floor(Math.random() * 12) + 2;
+        }
 
-  // ─────────────────────────────────────────────
-  // INIT
-  // ─────────────────────────────────────────────
-  initMap();
-  fetchEvents();
+        function toggleLanguage() {
+            currentLang = currentLang === 'ar' ? 'en' : 'ar';
+            document.documentElement.lang = currentLang;
+            document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+            
+            // In a real app, this would reload all text content
+            alert(currentLang === 'ar' ? 'تم تغيير اللغة إلى العربية' : 'Language changed to English');
+        }
 
-  // Add marker pulse CSS
-  const style = document.createElement('style');
-  style.textContent = `@keyframes markerPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.2)} }`;
-  document.head.appendChild(style);
-  </script>
+        function locateUser() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    map.setView([lat, lng], 10);
+                    
+                    L.marker([lat, lng]).addTo(map)
+                        .bindPopup(currentLang === 'ar' ? 'موقعك الحالي' : 'Your Location')
+                        .openPopup();
+                }, () => {
+                    alert(currentLang === 'ar' ? 'تعذر الحصول على الموقع' : 'Could not get location');
+                });
+            }
+        }
+
+        // Touch handling for bottom sheet
+        let touchStartY = 0;
+        let touchEndY = 0;
+        
+        const bottomSheet = document.getElementById('bottomSheet');
+        
+        bottomSheet.addEventListener('touchstart', e => {
+            touchStartY = e.changedTouches[0].screenY;
+        }, {passive: true});
+        
+        bottomSheet.addEventListener('touchend', e => {
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, {passive: true});
+        
+        function handleSwipe() {
+            if (touchEndY < touchStartY - 50) {
+                bottomSheet.classList.add('expanded');
+            }
+            if (touchEndY > touchStartY + 50) {
+                bottomSheet.classList.remove('expanded');
+            }
+        }
+
+        // Check if app is already installed
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+            document.getElementById('installModal').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+            setTimeout(() => {
+                initMap();
+                fetchEvents();
+            }, 100);
+        }
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('data:text/javascript;base64,' + btoa(`
+                self.addEventListener('install', e => {
+                    e.waitUntil(self.skipWaiting());
+                });
+                self.addEventListener('fetch', e => {
+                    e.respondWith(fetch(e.request).catch(() => {
+                        return new Response('Offline');
+                    }));
+                });
+            `)).catch(() => {
+                // Silent fail for demo
+            });
+        }
+
+        // Auto-refresh news every 10 minutes
+        setInterval(() => {
+            if (document.getElementById('app').style.display === 'block') {
+                fetchEvents();
+            }
+        }, 600000);
+    </script>
 </body>
 </html>
